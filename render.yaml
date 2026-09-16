@@ -1,0 +1,35 @@
+# render.yaml — Render Blueprint for RRE Studio
+# Deploy all services with one click at https://dashboard.render.com/blueprints
+
+services:
+  # ─────────────────────────────────────────────
+  # 1. Node.js Backend API
+  # ─────────────────────────────────────────────
+  - type: web
+    name: rre-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: MONGODB_URI
+        sync: false   # Set this manually in Render dashboard
+      - key: NODE_ENV
+        value: production
+      - key: GOOGLE_CLIENT_ID
+        sync: false   # Set this manually in Render dashboard
+
+  # ─────────────────────────────────────────────
+  # 2. Python Flask AI Service
+  # ─────────────────────────────────────────────
+  - type: web
+    name: rre-ai-service
+    runtime: docker
+    rootDir: ai_service
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8000
