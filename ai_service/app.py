@@ -10,6 +10,10 @@ import numpy as np
 app = Flask(__name__)
 CORS(app)
 
+@app.route('/')
+def health_check():
+    return jsonify({"status": "ok"})
+
 @app.route('/api/face-search', methods=['POST'])
 def face_search():
     data = request.json

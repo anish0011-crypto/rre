@@ -12,6 +12,7 @@ services:
     buildCommand: npm install
     startCommand: npm start
     plan: free
+    healthCheckPath: /
     envVars:
       - key: PORT
         value: 5000
@@ -20,6 +21,16 @@ services:
       - key: NODE_ENV
         value: production
       - key: GOOGLE_CLIENT_ID
+        sync: false   # Set this manually in Render dashboard
+      - key: RAZORPAY_KEY_ID
+        sync: false   # Set this manually in Render dashboard
+      - key: RAZORPAY_KEY_SECRET
+        sync: false   # Set this manually in Render dashboard
+      - key: EMAIL_USER
+        sync: false   # Set this manually in Render dashboard
+      - key: EMAIL_PASS
+        sync: false   # Set this manually in Render dashboard
+      - key: SMS_API_KEY
         sync: false   # Set this manually in Render dashboard
 
   # ─────────────────────────────────────────────
@@ -30,6 +41,7 @@ services:
     runtime: docker
     rootDir: ai_service
     plan: free
+    healthCheckPath: /
     envVars:
       - key: PORT
         value: 8000
