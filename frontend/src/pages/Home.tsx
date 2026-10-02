@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Star, Users, Zap, Trophy, Camera, Video, Mic2, Radio, Sparkles } from 'lucide-react';
@@ -7,8 +7,23 @@ import Services from '../components/Services';
 import GlassCard from '../components/ui/GlassCard';
 import SectionHeader from '../components/ui/SectionHeader';
 import Button from '../components/ui/Button';
+import { API_URL } from '../config/api';
 
 const Home: React.FC = () => {
+  const [content, setContent] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/home-content`);
+        if (res.ok) setContent(await res.json());
+      } catch (err) {
+        console.error("Failed to fetch home content", err);
+      }
+    };
+    fetchContent();
+  }, []);
+
   return (
     <div className="bg-[#000000] text-white selection:bg-[#00E5FF] selection:text-black">
       
@@ -29,34 +44,34 @@ const Home: React.FC = () => {
             >
               <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full glass-subtle text-[10px] font-bold uppercase tracking-[0.3em] text-[#00E5FF]">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Boutique Media & AI Production</span>
+                <span>{content?.badgeText || 'Boutique Media & AI Production'}</span>
               </div>
 
               <h2 className="heading-serif text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-[1.05]">
-                WE BELIEVE IN <br />
-                <span className="italic font-normal text-white/80">THE ART OF OBSERVATION.</span>
+                {content?.heading1 || "LET'S MAKE YOUR"} <br />
+                <span className="italic font-normal text-white/80">{content?.heading2 || 'MOMENTS EXTRAORDINARY.'}</span>
               </h2>
 
               <p className="editorial-subhead text-base sm:text-xl text-white/70 font-normal leading-relaxed max-w-2xl">
-                Rajat Raj Entertainment is a boutique media house dedicated to high-end photography, cinematic films, and world-class music production. We blend human emotion with artificial intelligence.
+                {content?.subheading || "We don't just create events, we create memories. ✨"}
               </p>
 
               {/* Statistics Grid */}
               <div className="grid grid-cols-2 gap-8 pt-4 border-t border-white/10 max-w-md">
                 <div>
                   <p className="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-1">
-                    12k+
+                    {content?.stat1Number || '12k+'}
                   </p>
                   <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00E5FF]">
-                    Captured Moments
+                    {content?.stat1Label || 'Captured Moments'}
                   </p>
                 </div>
                 <div>
                   <p className="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-1">
-                    500+
+                    {content?.stat2Number || '500+'}
                   </p>
                   <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00E5FF]">
-                    Delighted Clients
+                    {content?.stat2Label || 'Trusted Clients'}
                   </p>
                 </div>
               </div>
@@ -72,17 +87,17 @@ const Home: React.FC = () => {
               <GlassCard variant="strong" className="!p-4 border-white/20">
                 <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-neutral-900">
                   <img
-                    src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=1000&q=80"
-                    alt="RRE Studio Setup"
+                    src={content?.image || "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=1000&q=80"}
+                    alt={content?.imageBadge || "Studio Facilities"}
                     className="w-full h-full object-cover opacity-80 hover:scale-105 transition-transform duration-700"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                   <div className="absolute bottom-6 left-6 right-6">
                     <p className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-[#00E5FF] mb-1">
-                      Studio A-1 Facilities
+                      {content?.imageBadge || 'Studio A-1 Facilities'}
                     </p>
                     <p className="text-sm font-bold text-white uppercase tracking-wider">
-                      Dildarnagar, Uttar Pradesh
+                      {content?.imageLocation || 'Dildarnagar, Uttar Pradesh'}
                     </p>
                   </div>
                 </div>

@@ -52,7 +52,8 @@ import {
   ExternalLink,
   Menu,
   Monitor,
-  ImagePlus
+  ImagePlus,
+  LayoutTemplate
 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import toast from 'react-hot-toast';
@@ -61,6 +62,7 @@ import toast from 'react-hot-toast';
 const MAIN_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'hero', label: 'Hero Carousel', icon: Monitor },
+  { id: 'home', label: 'Home Page', icon: LayoutTemplate },
   { id: 'galleries', label: 'Galleries', icon: FolderOpen },
   { id: 'uploads', label: 'Photo Upload', icon: ImagePlus },
   { id: 'clients', label: 'Clients', icon: Users2 },
@@ -139,6 +141,9 @@ const AdminPanel = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [editingGallery, setEditingGallery] = useState<any | null>(null);
 
+  // ── HOME CONTENT STATE ──
+  const [homeContent, setHomeContent] = useState<any>(null);
+
   // ── HERO CAROUSEL STATE ──
   const [heroSlides, setHeroSlides] = useState<any[]>([]);
   const [heroSlideLoading, setHeroSlideLoading] = useState(false);
@@ -206,6 +211,9 @@ const AdminPanel = () => {
 
       const heroRes = await fetch(`${API_URL}/api/hero-slides/all`);
       if (heroRes.ok) setHeroSlides(await heroRes.json());
+
+      const homeRes = await fetch(`${API_URL}/api/home-content`);
+      if (homeRes.ok) setHomeContent(await homeRes.json());
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -644,47 +652,78 @@ const AdminPanel = () => {
     }
   };
 
-  // ── HERO CAROUSEL HANDLERS ──
-  const handleHeroSlideImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setNewSlideImage(ev.target?.result as string);
-    reader.readAsDataURL(file);
+  // ── HERO CAROUSEL HANDLERS (FIXED 3 SLOTS) ──
+  const handleSlotUpload = (slideIndex: number) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      const toastId = toast.loading(`Uploading Slide ${slideIndex + 1}...`);
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const base64 = ev.target?.result as string;
+        const existingSlide = heroSlides[slideIndex];
+        
+        try {
+          let res;
+          if (existingSlide) {
+            res = await fetch(`${API_URL}/api/hero-slides/${existingSlide._id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: base64 })
+            });
+          } else {
+            res = await fetch(`${API_URL}/api/hero-slides`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: base64, title: `Slide ${slideIndex + 1}`, isActive: true, order: slideIndex })
+            });
+          }
+          if (res.ok) {
+            toast.success(`Slide ${slideIndex + 1} updated!`, { id: toastId });
+            fetchData();
+          } else {
+            toast.error('Upload failed', { id: toastId });
+          }
+        } catch {
+          toast.error('Connection error', { id: toastId });
+        }
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
   };
 
-  const handleAddHeroSlide = async () => {
-    if (!newSlideImage) { toast.error('Please select an image first'); return; }
-    setHeroSlideLoading(true);
+  const handleUpdateHomeContent = async (field: string, value: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/hero-slides`, {
-        method: 'POST',
+      const res = await fetch(`${API_URL}/api/home-content`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: newSlideImage, title: newSlideTitle, isActive: true })
+        body: JSON.stringify({ [field]: value })
       });
       if (res.ok) {
-        toast.success('Slide added to carousel!');
-        setNewSlideImage('');
-        setNewSlideTitle('');
-        fetchData();
-      } else {
-        const err = await res.json();
-        toast.error(err.message || 'Failed to add slide');
+        setHomeContent(await res.json());
+        toast.success('Updated successfully');
       }
-    } catch (err) {
-      toast.error('Connection error');
-    } finally {
-      setHeroSlideLoading(false);
+    } catch {
+      toast.error('Failed to update');
     }
   };
 
-  const handleDeleteHeroSlide = async (id: string) => {
-    if (!confirm('Remove this slide from the carousel?')) return;
+  const handleUpdateSlideTitle = async (slide: any, newTitle: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/hero-slides/${id}`, { method: 'DELETE' });
-      if (res.ok) { toast.success('Slide removed'); fetchData(); }
-      else toast.error('Failed to delete slide');
-    } catch { toast.error('Connection error'); }
+      await fetch(`${API_URL}/api/hero-slides/${slide._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle })
+      });
+      fetchData(true); // silent fetch
+    } catch {
+      toast.error('Failed to update title');
+    }
   };
 
   const handleToggleHeroSlide = async (slide: any) => {
@@ -994,7 +1033,7 @@ const AdminPanel = () => {
           {/* Central Workspace */}
           <div className="flex-1 p-6 md:p-8 space-y-8 min-w-0 overflow-y-auto">
 
-            {/* ════ TAB: HERO CAROUSEL MANAGEMENT ════ */}
+            {/* ════ TAB: HERO CAROUSEL MANAGEMENT (FIXED 3 SLOTS) ════ */}
             {activeTab === 'hero' && (
               <motion.div
                 key="hero-view"
@@ -1005,117 +1044,166 @@ const AdminPanel = () => {
               >
                 <div>
                   <h2 className="text-2xl font-black text-white tracking-tight">Hero Carousel</h2>
-                  <p className="text-sm text-white/40 mt-1">Manage background images shown on the home page hero section</p>
+                  <p className="text-sm text-white/40 mt-1">Manage the 3 background images shown on the home page hero section</p>
                 </div>
 
-                {/* Add New Slide */}
-                <div className="p-6 rounded-2xl bg-[#0c1015] border border-white/10 space-y-5">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <ImagePlus className="w-4 h-4 text-[#00E5FF]" /> Add New Slide
-                  </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {[0, 1, 2].map((slotIndex) => {
+                    const slide = heroSlides[slotIndex];
+                    return (
+                      <div key={slotIndex} className={`p-4 rounded-2xl bg-[#0c1015] border transition-all ${slide?.isActive !== false ? 'border-white/10' : 'border-white/5 opacity-60'}`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                            <Monitor className="w-4 h-4 text-[#00E5FF]" /> Slide {slotIndex + 1}
+                          </h3>
+                          {slide && (
+                            <button
+                              onClick={() => handleToggleHeroSlide(slide)}
+                              className={`text-[9px] font-bold px-2 py-1 rounded-lg border transition-all ${
+                                slide.isActive
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                  : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              }`}
+                            >
+                              {slide.isActive ? 'Live' : 'Hidden'}
+                            </button>
+                          )}
+                        </div>
 
-                  {/* Image Preview */}
-                  {newSlideImage ? (
-                    <div className="relative aspect-video w-full max-w-md rounded-xl overflow-hidden border border-white/20">
-                      <img src={newSlideImage} alt="Preview" className="w-full h-full object-cover" />
-                      <button
-                        onClick={() => setNewSlideImage('')}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-white hover:bg-red-500/80 transition-colors"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      onClick={() => heroSlideInputRef.current?.click()}
-                      className="aspect-video w-full max-w-md rounded-xl border-2 border-dashed border-white/15 hover:border-[#00E5FF]/50 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all group"
-                    >
-                      <Upload className="w-8 h-8 text-white/30 group-hover:text-[#00E5FF] transition-colors" />
-                      <span className="text-xs text-white/40 group-hover:text-white/70 font-medium">Click to upload slide image</span>
-                      <span className="text-[10px] text-white/25">JPG, PNG, WEBP — max 5MB recommended</span>
-                    </div>
-                  )}
-
-                  <input
-                    ref={heroSlideInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleHeroSlideImageSelect}
-                  />
-
-                  <div className="flex gap-3">
-                    <input
-                      type="text"
-                      placeholder="Slide title / label (optional)"
-                      className="flex-1 px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-[#00E5FF]/50"
-                      value={newSlideTitle}
-                      onChange={e => setNewSlideTitle(e.target.value)}
-                    />
-                    <button
-                      onClick={handleAddHeroSlide}
-                      disabled={heroSlideLoading || !newSlideImage}
-                      className="px-5 py-2.5 bg-white text-black text-xs font-bold rounded-xl hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      {heroSlideLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                      Add Slide
-                    </button>
-                  </div>
-                </div>
-
-                {/* Existing Slides Grid */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-white/70">Current Slides ({heroSlides.length})</h3>
-                  {heroSlides.length === 0 ? (
-                    <div className="p-10 rounded-2xl border border-white/5 text-center text-white/30 text-sm">
-                      No slides yet. Add one above.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {heroSlides.map((slide: any, idx: number) => (
-                        <div key={slide._id} className={`rounded-2xl overflow-hidden border transition-all ${slide.isActive ? 'border-white/20' : 'border-white/5 opacity-50'}`}>
-                          <div className="relative aspect-video">
-                            <img
-                              src={slide.image}
-                              alt={slide.title || `Slide ${idx + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                            <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between">
-                              <span className="text-[10px] font-bold text-white/80 truncate max-w-[70%]">
-                                {slide.title || `Slide ${idx + 1}`}
-                              </span>
-                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${slide.isActive ? 'bg-emerald-500/30 text-emerald-400' : 'bg-red-500/30 text-red-400'}`}>
-                                {slide.isActive ? 'Live' : 'Hidden'}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="p-3 bg-[#0c1015] flex items-center justify-between gap-2">
-                            <span className="text-[10px] text-white/40 font-mono">#{idx + 1}</span>
-                            <div className="flex items-center gap-2">
+                        {/* Image Area */}
+                        {slide?.image ? (
+                          <div className="relative aspect-video w-full rounded-xl overflow-hidden border border-white/10 group mb-4">
+                            <img src={slide.image} alt="Slide preview" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <button
-                                onClick={() => handleToggleHeroSlide(slide)}
-                                className={`text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-all ${
-                                  slide.isActive
-                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
-                                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                                }`}
+                                onClick={() => handleSlotUpload(slotIndex)}
+                                className="px-4 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-white/90 shadow-lg flex items-center gap-2"
                               >
-                                {slide.isActive ? 'Hide' : 'Show'}
-                              </button>
-                              <button
-                                onClick={() => handleDeleteHeroSlide(slide._id)}
-                                className="p-1.5 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <RefreshCw className="w-3.5 h-3.5" /> Replace Image
                               </button>
                             </div>
                           </div>
+                        ) : (
+                          <div
+                            onClick={() => handleSlotUpload(slotIndex)}
+                            className="aspect-video w-full rounded-xl border-2 border-dashed border-white/10 hover:border-[#00E5FF]/40 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all group mb-4 bg-white/[0.02]"
+                          >
+                            <Upload className="w-6 h-6 text-white/20 group-hover:text-[#00E5FF] transition-colors" />
+                            <span className="text-xs text-white/30 group-hover:text-white/60 font-medium">Upload Image</span>
+                          </div>
+                        )}
+
+                        {/* Title Input */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">Slide Text</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Cinematic Films & Visual Arts"
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/30 transition-all"
+                            value={slide?.title || ''}
+                            onChange={e => {
+                              if (slide) {
+                                // Optimistically update local state while calling API silently
+                                const newSlides = [...heroSlides];
+                                newSlides[slotIndex].title = e.target.value;
+                                setHeroSlides(newSlides);
+                                handleUpdateSlideTitle(slide, e.target.value);
+                              }
+                            }}
+                            disabled={!slide}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ════ TAB: HOME PAGE CONTENT ════ */}
+            {activeTab === 'home' && (
+              <motion.div
+                key="home-view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35 }}
+                className="space-y-8"
+              >
+                <div>
+                  <h2 className="text-2xl font-black text-white tracking-tight">Home Page Content</h2>
+                  <p className="text-sm text-white/40 mt-1">Manage the text and photo in the "Boutique Media & AI Production" section.</p>
+                </div>
+
+                {homeContent && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Text Fields */}
+                    <div className="space-y-4 bg-[#0c1015] p-6 rounded-2xl border border-white/10">
+                      <h3 className="text-sm font-bold text-[#00E5FF] mb-4">Text Content</h3>
+                      {[
+                        { key: 'badgeText', label: 'Badge Text' },
+                        { key: 'heading1', label: 'Heading Line 1' },
+                        { key: 'heading2', label: 'Heading Line 2' },
+                        { key: 'subheading', label: 'Subheading (Memories text)' },
+                        { key: 'stat1Number', label: 'Stat 1 Number' },
+                        { key: 'stat1Label', label: 'Stat 1 Label' },
+                        { key: 'stat2Number', label: 'Stat 2 Number' },
+                        { key: 'stat2Label', label: 'Stat 2 Label' },
+                      ].map((field) => (
+                        <div key={field.key} className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">{field.label}</label>
+                          <input
+                            type="text"
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/30 transition-all"
+                            value={homeContent[field.key] || ''}
+                            onChange={(e) => setHomeContent({ ...homeContent, [field.key]: e.target.value })}
+                            onBlur={(e) => handleUpdateHomeContent(field.key, e.target.value)}
+                          />
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
+
+                    {/* Image Fields */}
+                    <div className="space-y-4 bg-[#0c1015] p-6 rounded-2xl border border-white/10">
+                      <h3 className="text-sm font-bold text-[#00E5FF] mb-4">Section Photo</h3>
+                      <div className="relative aspect-[4/5] max-w-[200px] rounded-xl overflow-hidden mb-4 border border-white/10">
+                        <img src={homeContent.image} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">Photo URL</label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/30 transition-all"
+                          value={homeContent.image || ''}
+                          onChange={(e) => setHomeContent({ ...homeContent, image: e.target.value })}
+                          onBlur={(e) => handleUpdateHomeContent('image', e.target.value)}
+                        />
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">Photo Badge</label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/30 transition-all"
+                          value={homeContent.imageBadge || ''}
+                          onChange={(e) => setHomeContent({ ...homeContent, imageBadge: e.target.value })}
+                          onBlur={(e) => handleUpdateHomeContent('imageBadge', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">Photo Location</label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/30 transition-all"
+                          value={homeContent.imageLocation || ''}
+                          onChange={(e) => setHomeContent({ ...homeContent, imageLocation: e.target.value })}
+                          onBlur={(e) => handleUpdateHomeContent('imageLocation', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
 

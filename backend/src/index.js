@@ -26,6 +26,7 @@ const teamRoutes = require('./routes/teamRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const heroSlideRoutes = require('./routes/heroSlideRoutes');
+const homeContentRoutes = require('./routes/homeContentRoutes');
 app.use('/api/galleries', galleryRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/services', serviceRoutes);
@@ -33,6 +34,7 @@ app.use('/api/team', teamRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/hero-slides', heroSlideRoutes);
+app.use('/api/home-content', homeContentRoutes);
 
 // MongoDB Connection with retry logic
 const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/rre_studio';

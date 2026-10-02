@@ -83,7 +83,7 @@ const Hero: React.FC = () => {
           <motion.div
             key={slides[currentSlide]?._id || currentSlide}
             initial={{ opacity: 0, scale: 1.06 }}
-            animate={{ opacity: 0.55, scale: 1 }}
+            animate={{ opacity: 0.85, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{
               duration: shouldReduceMotion ? 0.01 : 1.2,
@@ -108,17 +108,6 @@ const Hero: React.FC = () => {
       {/* 2. HERO CONTENT CONTAINER (SINGLE CLEAN SLOGAN + CTA) */}
       <div className="satyam-container relative z-10 w-full">
         <div className="max-w-3xl space-y-6 md:space-y-8">
-          
-          {/* Tagline Badge */}
-          <motion.div
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full glass-subtle text-[10px] md:text-[11px] font-bold uppercase tracking-[0.28em] text-[#00E5FF]"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>India's AI-Integrated Entertainment House</span>
-          </motion.div>
 
           {/* Slogan Headline (Clean, Proportional Typography) */}
           <motion.div
@@ -142,7 +131,7 @@ const Hero: React.FC = () => {
             transition={{ duration: 0.7, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
             className="text-sm sm:text-base md:text-lg text-white/75 max-w-xl font-normal leading-relaxed"
           >
-            High-end photography, cinematic films, and studio music production. Powered by Artificial Intelligence.
+            A Complete Professional Photography Cinematography Studio In Dildarnagar
           </motion.p>
 
           {/* Primary CTA & Background Carousel Controls */}
