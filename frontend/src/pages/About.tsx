@@ -15,18 +15,25 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import DynamicSectionRenderer, { SectionData } from '../components/DynamicSectionRenderer';
 import { API_URL } from '../config/api';
 
 const About = () => {
   const [team, setTeam] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [c, setC] = useState<any>({});
+  const [dynamicSections, setDynamicSections] = useState<SectionData[]>([]);
 
   useEffect(() => {
     fetchTeam();
     fetch(`${API_URL}/api/about-content`)
       .then(r => r.ok ? r.json() : {})
       .then(data => setC(data))
+      .catch(() => {});
+
+    fetch(`${API_URL}/api/sections?page=about`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setDynamicSections(data))
       .catch(() => {});
   }, []);
 
@@ -83,6 +90,15 @@ const About = () => {
           </motion.div>
         </div>
       </section>
+
+      {/* DYNAMIC SECTIONS FOR ABOUT PAGE */}
+      {dynamicSections.length > 0 && (
+        <>
+          {dynamicSections.map((sec) => (
+            <DynamicSectionRenderer key={sec._id} section={sec} />
+          ))}
+        </>
+      )}
 
       {/* ── PHILOSOPHY SECTION ── */}
       <section className="py-20 md:py-32 border-t border-white/10">

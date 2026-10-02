@@ -61,6 +61,7 @@ import toast from 'react-hot-toast';
 // ── NAVIGATION MODULES ──────────────────────────────────────────────────────
 const MAIN_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'sections', label: 'Sections & Buttons', icon: Layers },
   { id: 'hero', label: 'Hero Carousel', icon: Monitor },
   { id: 'home', label: 'Home Page', icon: LayoutTemplate },
   { id: 'about', label: 'About Page', icon: FileText },
@@ -79,6 +80,90 @@ const FAVORITES_MENU = [
   { label: 'Public Portfolio', href: '/portfolio', icon: ImageIcon, external: true },
   { label: 'AI Intelligence Hub', href: '/ai-hub', icon: Sparkles, external: true },
 ];
+
+// ── REUSABLE IMAGE UPLOAD COMPONENT ──────────────────────────────────────────
+const ImageUploadInput = ({
+  label,
+  value,
+  onChange,
+  className = ""
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file (PNG, JPG, WEBP)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (base64) {
+        onChange(base64);
+        toast.success('Photo uploaded successfully!');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className={`space-y-1.5 ${className}`}>
+      <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block">
+        {label}
+      </label>
+      
+      <div className="flex items-center gap-3">
+        {value ? (
+          <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/15 shrink-0 group">
+            <img src={value} alt="Preview" className="w-full h-full object-cover" />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[9px] font-bold"
+            >
+              Change
+            </button>
+          </div>
+        ) : null}
+
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          className="flex-1 px-4 py-3 bg-white/5 border border-dashed border-white/15 hover:border-[#00E5FF]/50 rounded-xl flex items-center justify-between cursor-pointer transition-all group"
+        >
+          <div className="flex items-center gap-2.5">
+            <Upload className="w-4 h-4 text-white/40 group-hover:text-[#00E5FF] transition-colors shrink-0" />
+            <div>
+              <span className="text-xs font-semibold text-white/70 group-hover:text-white block">
+                {value ? 'Replace Photo' : 'Select Photo to Upload'}
+              </span>
+              <span className="text-[9px] text-white/30 block">JPG, PNG, WEBP supported</span>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white/10 text-white/80 group-hover:bg-[#00E5FF] group-hover:text-black transition-all">
+            Browse
+          </span>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+      </div>
+    </div>
+  );
+};
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -160,6 +245,134 @@ const AdminPanel = () => {
   const [standaloneFiles, setStandaloneFiles] = useState<File[]>([]);
   const [uploadingStandalone, setUploadingStandalone] = useState(false);
 
+  // ── SECTIONS & BUTTONS MANAGEMENT STATE ──
+  const [sections, setSections] = useState<any[]>([]);
+  const [sectionFilterPage, setSectionFilterPage] = useState<string>('all');
+  const [isEditingSection, setIsEditingSection] = useState<boolean>(false);
+  const [currentSectionForm, setCurrentSectionForm] = useState<any>({
+    page: 'home',
+    title: '',
+    subtitle: '',
+    badge: '',
+    content: '',
+    image: '',
+    layout: 'split_right',
+    theme: 'dark',
+    order: 0,
+    isActive: true,
+    buttons: [],
+    items: []
+  });
+
+  const fetchSections = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/sections?includeInactive=true`);
+      if (res.ok) {
+        const data = await res.json();
+        setSections(data);
+      }
+    } catch (err) {
+      console.error('Error fetching sections:', err);
+    }
+  };
+
+  const handleSaveSection = async () => {
+    try {
+      setIsSubmitting(true);
+      const method = currentSectionForm._id ? 'PUT' : 'POST';
+      const url = currentSectionForm._id 
+        ? `${API_URL}/api/sections/${currentSectionForm._id}`
+        : `${API_URL}/api/sections`;
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentSectionForm)
+      });
+
+      if (res.ok) {
+        toast.success(currentSectionForm._id ? 'Section updated successfully!' : 'New section created successfully!');
+        setIsEditingSection(false);
+        fetchSections();
+      } else {
+        toast.error('Failed to save section');
+      }
+    } catch (err) {
+      toast.error('Error saving section');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteSection = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this section?')) return;
+    try {
+      const res = await fetch(`${API_URL}/api/sections/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Section deleted');
+        fetchSections();
+      } else {
+        toast.error('Failed to delete section');
+      }
+    } catch (err) {
+      toast.error('Error deleting section');
+    }
+  };
+
+  const handleToggleSectionActive = async (sec: any) => {
+    try {
+      const res = await fetch(`${API_URL}/api/sections/${sec._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !sec.isActive })
+      });
+      if (res.ok) {
+        toast.success(sec.isActive ? 'Section hidden from website' : 'Section shown on website');
+        fetchSections();
+      }
+    } catch (err) {
+      toast.error('Failed to update active state');
+    }
+  };
+
+  const handleSeedDefaultSections = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/sections/seed-defaults`, { method: 'POST' });
+      if (res.ok) {
+        toast.success('Default sections restored!');
+        fetchSections();
+      }
+    } catch (err) {
+      toast.error('Error seeding default sections');
+    }
+  };
+
+  const handleAddButton = () => {
+    setCurrentSectionForm((prev: any) => ({
+      ...prev,
+      buttons: [
+        ...(prev.buttons || []),
+        { text: 'New Button', link: '#', variant: 'primary', isActive: true }
+      ]
+    }));
+  };
+
+  const handleUpdateButton = (index: number, field: string, val: any) => {
+    setCurrentSectionForm((prev: any) => {
+      const updatedButtons = [...(prev.buttons || [])];
+      updatedButtons[index] = { ...updatedButtons[index], [field]: val };
+      return { ...prev, buttons: updatedButtons };
+    });
+  };
+
+  const handleDeleteButton = (index: number) => {
+    setCurrentSectionForm((prev: any) => {
+      const updatedButtons = [...(prev.buttons || [])];
+      updatedButtons.splice(index, 1);
+      return { ...prev, buttons: updatedButtons };
+    });
+  };
+
   // ── PRESERVED: Authentication verification & polling ──
   useEffect(() => {
     const auth = localStorage.getItem('isAdminAuthenticated');
@@ -221,6 +434,8 @@ const AdminPanel = () => {
 
       const aboutRes = await fetch(`${API_URL}/api/about-content`);
       if (aboutRes.ok) setAboutContent(await aboutRes.json());
+
+      await fetchSections();
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -1056,6 +1271,479 @@ const AdminPanel = () => {
           {/* Central Workspace */}
           <div className="flex-1 p-6 md:p-8 space-y-8 min-w-0 overflow-y-auto">
 
+            {/* ════ TAB: SECTIONS & BUTTONS CONTROL ════ */}
+            {activeTab === 'sections' && (
+              <motion.div
+                key="sections-view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35 }}
+                className="space-y-8"
+              >
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                      <Layers className="w-6 h-6 text-[#00E5FF]" />
+                      Website Sections & Buttons Control
+                    </h2>
+                    <p className="text-sm text-white/40 mt-1">
+                      Full admin control to add, update, delete, re-order sections & call-to-action buttons across all website pages live.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleSeedDefaultSections}
+                      className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-white/80 text-xs font-semibold flex items-center gap-2 transition-all"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 text-[#00E5FF]" />
+                      Restore Defaults
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setCurrentSectionForm({
+                          page: 'home',
+                          title: '',
+                          subtitle: '',
+                          badge: '',
+                          content: '',
+                          image: '',
+                          layout: 'split_right',
+                          theme: 'dark',
+                          order: sections.length + 1,
+                          isActive: true,
+                          buttons: [{ text: 'Learn More', link: '#', variant: 'primary', isActive: true }],
+                          items: []
+                        });
+                        setIsEditingSection(true);
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-[#00E5FF] hover:bg-[#00E5FF]/80 text-black text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-[#00E5FF]/20 transition-all hover:scale-105"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add New Section
+                    </button>
+                  </div>
+                </div>
+
+                {/* PAGE FILTER BAR */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/10">
+                  {['all', 'home', 'about', 'services', 'custom'].map((pg) => (
+                    <button
+                      key={pg}
+                      onClick={() => setSectionFilterPage(pg)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold capitalize transition-all shrink-0 ${
+                        sectionFilterPage === pg
+                          ? 'bg-[#00E5FF] text-black shadow-md shadow-[#00E5FF]/20'
+                          : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      {pg === 'all' ? 'All Sections' : `${pg} Page`}
+                    </button>
+                  ))}
+                </div>
+
+                {/* SECTIONS LIST */}
+                <div className="grid grid-cols-1 gap-6">
+                  {sections
+                    .filter((sec) => sectionFilterPage === 'all' || sec.page === sectionFilterPage)
+                    .map((sec, idx) => (
+                      <div
+                        key={sec._id || idx}
+                        className={`p-6 rounded-2xl border transition-all ${
+                          sec.isActive
+                            ? 'bg-[#0c1015] border-white/10 hover:border-[#00E5FF]/30'
+                            : 'bg-white/[0.02] border-white/5 opacity-60'
+                        }`}
+                      >
+                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                          
+                          {/* Left Details */}
+                          <div className="space-y-4 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                                sec.isActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                              }`}>
+                                {sec.isActive ? 'Visible' : 'Hidden'}
+                              </span>
+                              
+                              <span className="px-2.5 py-1 rounded-md bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/20 text-[10px] font-bold uppercase tracking-wider">
+                                Page: {sec.page}
+                              </span>
+
+                              <span className="px-2.5 py-1 rounded-md bg-white/10 text-white/70 text-[10px] font-bold uppercase tracking-wider">
+                                Layout: {sec.layout}
+                              </span>
+
+                              <span className="px-2.5 py-1 rounded-md bg-white/5 text-white/40 text-[10px] font-mono">
+                                Order: #{sec.order || 0}
+                              </span>
+                            </div>
+
+                            <div>
+                              {sec.badge && (
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-[#00E5FF] mb-1">
+                                  {sec.badge}
+                                </p>
+                              )}
+                              <h3 className="text-xl font-bold text-white tracking-tight">
+                                {sec.title || 'Untitled Section'}
+                              </h3>
+                              {sec.subtitle && (
+                                <p className="text-sm text-white/70 mt-1">{sec.subtitle}</p>
+                              )}
+                              {sec.content && (
+                                <p className="text-xs text-white/50 mt-2 line-clamp-2">{sec.content}</p>
+                              )}
+                            </div>
+
+                            {/* Buttons list preview */}
+                            {sec.buttons && sec.buttons.length > 0 && (
+                              <div className="pt-3 border-t border-white/8">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2">
+                                  Section Buttons ({sec.buttons.length}):
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {sec.buttons.map((b: any, bIdx: number) => (
+                                    <span
+                                      key={b._id || bIdx}
+                                      className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 ${
+                                        b.variant === 'outline'
+                                          ? 'border border-[#00E5FF]/40 text-[#00E5FF]'
+                                          : b.variant === 'accent'
+                                          ? 'bg-amber-400 text-black font-bold'
+                                          : 'bg-[#00E5FF]/20 text-[#00E5FF]'
+                                      } ${!b.isActive && 'opacity-40 stroke-dasharray'}`}
+                                    >
+                                      {b.text}
+                                      <span className="text-[9px] text-white/40">({b.link})</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Right Media & Actions */}
+                          <div className="flex flex-col md:items-end justify-between gap-4 shrink-0">
+                            {sec.image && (
+                              <div className="w-24 h-24 rounded-xl overflow-hidden border border-white/15 bg-black">
+                                <img src={sec.image} alt="" className="w-full h-full object-cover" />
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleToggleSectionActive(sec)}
+                                className={`p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                                  sec.isActive
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                                    : 'bg-white/5 text-white/50 border-white/10 hover:bg-white/10'
+                                }`}
+                              >
+                                {sec.isActive ? 'Active' : 'Hidden'}
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setCurrentSectionForm({ ...sec });
+                                  setIsEditingSection(true);
+                                }}
+                                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-[#00E5FF] hover:text-black text-white text-xs font-bold transition-all flex items-center gap-1.5"
+                              >
+                                Edit Section & Buttons
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteSection(sec._id)}
+                                className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 transition-all"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+                    ))}
+                </div>
+
+                {/* EDIT / CREATE SECTION MODAL */}
+                <AnimatePresence>
+                  {isEditingSection && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 md:p-8 rounded-3xl bg-[#0c1015] border border-white/15 space-y-6 text-white shadow-2xl"
+                      >
+                        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                          <div>
+                            <h3 className="text-xl font-bold text-white">
+                              {currentSectionForm._id ? 'Edit Section & Buttons' : 'Create New Section & Buttons'}
+                            </h3>
+                            <p className="text-xs text-white/40 mt-1">Configure section text, layout, images, and CTA buttons</p>
+                          </div>
+                          <button
+                            onClick={() => setIsEditingSection(false)}
+                            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        {/* SECTION FORM FIELDS */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          
+                          <div className="space-y-4">
+                            <div>
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block mb-1">
+                                Target Page
+                              </label>
+                              <select
+                                value={currentSectionForm.page || 'home'}
+                                onChange={(e) => setCurrentSectionForm({ ...currentSectionForm, page: e.target.value })}
+                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-[#00E5FF]"
+                              >
+                                <option value="home" className="bg-black">Home Page</option>
+                                <option value="about" className="bg-black">About Page</option>
+                                <option value="services" className="bg-black">Services Page</option>
+                                <option value="custom" className="bg-black">Custom Page</option>
+                                <option value="all" className="bg-black">All Pages</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block mb-1">
+                                Section Title (Heading)
+                              </label>
+                              <input
+                                type="text"
+                                value={currentSectionForm.title || ''}
+                                onChange={(e) => setCurrentSectionForm({ ...currentSectionForm, title: e.target.value })}
+                                placeholder="e.g. LET'S MAKE YOUR MOMENTS EXTRAORDINARY"
+                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-[#00E5FF]"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block mb-1">
+                                Badge / Overline Text
+                              </label>
+                              <input
+                                type="text"
+                                value={currentSectionForm.badge || ''}
+                                onChange={(e) => setCurrentSectionForm({ ...currentSectionForm, badge: e.target.value })}
+                                placeholder="e.g. BOUTIQUE MEDIA & AI PRODUCTION"
+                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-[#00E5FF]"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block mb-1">
+                                Subtitle / Secondary Text
+                              </label>
+                              <input
+                                type="text"
+                                value={currentSectionForm.subtitle || ''}
+                                onChange={(e) => setCurrentSectionForm({ ...currentSectionForm, subtitle: e.target.value })}
+                                placeholder="e.g. We don't just create events, we create memories. ✨"
+                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-[#00E5FF]"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block mb-1">
+                                Detailed Body Content (Paragraph)
+                              </label>
+                              <textarea
+                                rows={3}
+                                value={currentSectionForm.content || ''}
+                                onChange={(e) => setCurrentSectionForm({ ...currentSectionForm, content: e.target.value })}
+                                placeholder="Add detailed paragraph text..."
+                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-[#00E5FF] resize-none"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div>
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block mb-1">
+                                Layout Type
+                              </label>
+                              <select
+                                value={currentSectionForm.layout || 'split_right'}
+                                onChange={(e) => setCurrentSectionForm({ ...currentSectionForm, layout: e.target.value })}
+                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-[#00E5FF]"
+                              >
+                                <option value="split_right" className="bg-black">Split Image Right (Editorial)</option>
+                                <option value="split_left" className="bg-black">Split Image Left</option>
+                                <option value="banner" className="bg-black">Banner / Hero Style</option>
+                                <option value="centered_cta" className="bg-black">Centered CTA</option>
+                                <option value="features" className="bg-black">Feature Cards Grid</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block mb-1">
+                                Theme / Aesthetic
+                              </label>
+                              <select
+                                value={currentSectionForm.theme || 'dark'}
+                                onChange={(e) => setCurrentSectionForm({ ...currentSectionForm, theme: e.target.value })}
+                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-[#00E5FF]"
+                              >
+                                <option value="dark" className="bg-black">Dark Minimalist</option>
+                                <option value="glass" className="bg-black">Glassmorphism Dark</option>
+                                <option value="accent" className="bg-black">Cyan Accent</option>
+                              </select>
+                            </div>
+
+                            <ImageUploadInput
+                              label="Section Image"
+                              value={currentSectionForm.image || ''}
+                              onChange={(val) => setCurrentSectionForm({ ...currentSectionForm, image: val })}
+                            />
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block mb-1">
+                                  Display Order (Sort Index)
+                                </label>
+                                <input
+                                  type="number"
+                                  value={currentSectionForm.order || 0}
+                                  onChange={(e) => setCurrentSectionForm({ ...currentSectionForm, order: parseInt(e.target.value) || 0 })}
+                                  className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-[#00E5FF]"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block mb-1">
+                                  Visibility
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => setCurrentSectionForm({ ...currentSectionForm, isActive: !currentSectionForm.isActive })}
+                                  className={`w-full py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                                    currentSectionForm.isActive
+                                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                      : 'bg-white/5 text-white/50 border-white/10'
+                                  }`}
+                                >
+                                  {currentSectionForm.isActive ? 'Visible on Website' : 'Hidden from Website'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                        </div>
+
+                        {/* BUTTONS MANAGER */}
+                        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="text-sm font-bold text-[#00E5FF] flex items-center gap-2">
+                                Section Buttons Control
+                              </h4>
+                              <p className="text-[10px] text-white/40">Add, edit or customize CTA buttons for this section</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleAddButton}
+                              className="px-3 py-1.5 rounded-lg bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/30 text-xs font-bold flex items-center gap-1 hover:bg-[#00E5FF] hover:text-black transition-all"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Add Button
+                            </button>
+                          </div>
+
+                          {(!currentSectionForm.buttons || currentSectionForm.buttons.length === 0) ? (
+                            <p className="text-xs text-white/30 italic">No buttons added to this section yet.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {currentSectionForm.buttons.map((btn: any, bIdx: number) => (
+                                <div key={bIdx} className="p-3 rounded-xl bg-black/40 border border-white/10 grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                                  <div className="md:col-span-4">
+                                    <label className="text-[9px] font-bold text-white/40 block mb-0.5">Button Label</label>
+                                    <input
+                                      type="text"
+                                      value={btn.text || ''}
+                                      onChange={(e) => handleUpdateButton(bIdx, 'text', e.target.value)}
+                                      placeholder="Button Text"
+                                      className="w-full px-2.5 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#00E5FF]"
+                                    />
+                                  </div>
+
+                                  <div className="md:col-span-4">
+                                    <label className="text-[9px] font-bold text-white/40 block mb-0.5">Link / URL Action</label>
+                                    <input
+                                      type="text"
+                                      value={btn.link || ''}
+                                      onChange={(e) => handleUpdateButton(bIdx, 'link', e.target.value)}
+                                      placeholder="e.g. /booking or https://..."
+                                      className="w-full px-2.5 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#00E5FF]"
+                                    />
+                                  </div>
+
+                                  <div className="md:col-span-3">
+                                    <label className="text-[9px] font-bold text-white/40 block mb-0.5">Style Variant</label>
+                                    <select
+                                      value={btn.variant || 'primary'}
+                                      onChange={(e) => handleUpdateButton(bIdx, 'variant', e.target.value)}
+                                      className="w-full px-2.5 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#00E5FF]"
+                                    >
+                                      <option value="primary" className="bg-black">Primary Cyan</option>
+                                      <option value="outline" className="bg-black">Outline Cyan</option>
+                                      <option value="secondary" className="bg-black">Secondary Glass</option>
+                                      <option value="accent" className="bg-black">Accent Gold</option>
+                                    </select>
+                                  </div>
+
+                                  <div className="md:col-span-1 flex items-center justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteButton(bIdx)}
+                                      className="p-1.5 text-rose-400 hover:text-rose-200 hover:bg-rose-500/20 rounded-lg transition-all"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* MODAL FOOTER */}
+                        <div className="flex items-center justify-end gap-3 border-t border-white/10 pt-4">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingSection(false)}
+                            className="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs font-semibold transition-all"
+                          >
+                            Cancel
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={handleSaveSection}
+                            disabled={isSubmitting}
+                            className="px-6 py-2.5 rounded-xl bg-[#00E5FF] hover:bg-[#00E5FF]/80 text-black text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-[#00E5FF]/20 transition-all hover:scale-105"
+                          >
+                            {isSubmitting ? 'Saving...' : 'Save Section & Buttons'}
+                          </button>
+                        </div>
+
+                      </motion.div>
+                    </div>
+                  )}
+                </AnimatePresence>
+
+              </motion.div>
+            )}
+
             {/* ════ TAB: HERO CAROUSEL MANAGEMENT (FIXED 3 SLOTS) ════ */}
             {activeTab === 'hero' && (
               <motion.div
@@ -1198,13 +1886,14 @@ const AdminPanel = () => {
                             {fieldRow('Stat 2 Label', 'stat2Label')}
                           </div>
                           <div className="space-y-4">
-                            <div>
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2">Image Preview</p>
-                              <div className="aspect-[4/5] max-w-[180px] rounded-xl overflow-hidden border border-white/10">
-                                <img src={homeContent.image} alt="Preview" className="w-full h-full object-cover" />
-                              </div>
-                            </div>
-                            {fieldRow('Section Image URL', 'image')}
+                            <ImageUploadInput
+                              label="Brand Intro Photo"
+                              value={homeContent.image || ''}
+                              onChange={(val) => {
+                                setHomeContent({ ...homeContent, image: val });
+                                handleUpdateHomeContent('image', val);
+                              }}
+                            />
                             {fieldRow('Image Badge', 'imageBadge')}
                             {fieldRow('Image Location', 'imageLocation')}
                           </div>
@@ -1306,7 +1995,14 @@ const AdminPanel = () => {
                         {fieldRow('Heading Line 2 (italic)', 'heroHeading2')}
                         {fieldRow('Heading Line 3', 'heroHeading3')}
                         {fieldRow('Subheading paragraph', 'heroSubheading', true)}
-                        {fieldRow('Hero Background Image URL', 'heroBgImage')}
+                        <ImageUploadInput
+                          label="Hero Background Photo"
+                          value={aboutContent.heroBgImage || ''}
+                          onChange={(val) => {
+                            setAboutContent({ ...aboutContent, heroBgImage: val });
+                            handleUpdateAboutContent('heroBgImage', val);
+                          }}
+                        />
                       </div>
 
                       {/* Philosophy Section */}
@@ -1316,7 +2012,14 @@ const AdminPanel = () => {
                         {fieldRow('Heading 1', 'philosophyHeading1')}
                         {fieldRow('Heading 2 (italic)', 'philosophyHeading2')}
                         {fieldRow('Body paragraph', 'philosophyBody', true)}
-                        {fieldRow('Section Image URL', 'philosophyImage')}
+                        <ImageUploadInput
+                          label="Philosophy Section Photo"
+                          value={aboutContent.philosophyImage || ''}
+                          onChange={(val) => {
+                            setAboutContent({ ...aboutContent, philosophyImage: val });
+                            handleUpdateAboutContent('philosophyImage', val);
+                          }}
+                        />
                         {fieldRow('Mission Title', 'missionTitle')}
                         {fieldRow('Mission Description', 'missionDesc', true)}
                         {fieldRow('Vision Title', 'visionTitle')}
@@ -2069,6 +2772,14 @@ const AdminPanel = () => {
                       <input type="text" placeholder="Full Name" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white" value={newTeamMember.name} onChange={e => setNewTeamMember({...newTeamMember, name: e.target.value})} required />
                       <input type="text" placeholder="Role" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white" value={newTeamMember.role} onChange={e => setNewTeamMember({...newTeamMember, role: e.target.value})} required />
                       <textarea placeholder="Bio" rows={2} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white" value={newTeamMember.bio} onChange={e => setNewTeamMember({...newTeamMember, bio: e.target.value})} required />
+                      <ImageUploadInput
+                        label="Member Photo"
+                        value={newTeamMember.img || teamPhotoPreview || ''}
+                        onChange={(val) => {
+                          setNewTeamMember(prev => ({ ...prev, img: val }));
+                          setTeamPhotoPreview(val);
+                        }}
+                      />
                       <button type="submit" className="w-full py-2.5 bg-white text-black text-xs font-bold rounded-xl">Save Member</button>
                     </form>
                   </div>
@@ -2418,6 +3129,12 @@ const AdminPanel = () => {
                   </div>
                 </div>
 
+                <ImageUploadInput
+                  label="Gallery Cover Photo"
+                  value={editingGallery.coverImage || ''}
+                  onChange={(val) => setEditingGallery({ ...editingGallery, coverImage: val })}
+                />
+
                 <div className="flex items-center gap-3 pt-1">
                   <input
                     type="checkbox"
@@ -2554,6 +3271,14 @@ const AdminPanel = () => {
                     />
                     <label htmlFor="isNewPublic" className="text-[10px] font-bold uppercase tracking-widest text-white/50">Public Gallery</label>
                   </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <ImageUploadInput
+                    label="Gallery Cover Photo"
+                    value={newGallery.coverImage || ''}
+                    onChange={(val) => setNewGallery({ ...newGallery, coverImage: val })}
+                  />
                 </div>
 
                 <div className="md:col-span-2 pt-2 flex gap-3">
