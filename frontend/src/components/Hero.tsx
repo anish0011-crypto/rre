@@ -120,13 +120,7 @@ const Hero: React.FC = () => {
                   size="lg"
                   rightIcon={<ArrowRight className="w-4 h-4" />}
                 >
-                  Request a Quote
-                </Button>
-              </Link>
-              
-              <Link to="/portfolio">
-                <Button variant="ghost" size="lg">
-                  Explore Work
+                  Book Now
                 </Button>
               </Link>
             </motion.div>

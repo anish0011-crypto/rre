@@ -1,3 +1,9 @@
+// Fix: Use Google DNS to resolve MongoDB Atlas SRV records
+// (System/ISP DNS often blocks SRV lookups causing ECONNREFUSED)
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1', '1.0.0.1']);
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -26,14 +32,28 @@ app.use('/api/team', teamRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/bookings', bookingRoutes);
 
-// MongoDB Connection
+// MongoDB Connection with retry logic
 const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/rre_studio';
-mongoose.connect(mongoURI, {
-  serverSelectionTimeoutMS: 5000,
-  connectTimeoutMS: 10000,
-})
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
+
+const connectWithRetry = (retries = 5, delay = 3000) => {
+  mongoose.connect(mongoURI, {
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 15000,
+    socketTimeoutMS: 45000,
+  })
+    .then(() => console.log('✅ MongoDB connected successfully'))
+    .catch(err => {
+      console.error(`❌ MongoDB connection error: ${err.message}`);
+      if (retries > 0) {
+        console.log(`🔄 Retrying MongoDB connection in ${delay / 1000}s... (${retries} attempts left)`);
+        setTimeout(() => connectWithRetry(retries - 1, delay * 1.5), delay);
+      } else {
+        console.error('🚫 MongoDB connection failed after all retries. Server running without DB.');
+      }
+    });
+};
+
+connectWithRetry();
 
 // Basic Route
 app.get('/', (req, res) => {

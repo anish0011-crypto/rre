@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronDown, Camera, Video, Mic2, Music, Radio, Sparkles, User, ArrowRight } from 'lucide-react';
+import { Menu, X, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [showServices, setShowServices] = useState(false);
-  const [mobileServicesOpen, setMobileServicesOpen] = useState(false);
   
   const location = useLocation();
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -23,8 +21,6 @@ const Navbar: React.FC = () => {
   // Close mobile menu on route change
   useEffect(() => {
     setIsOpen(false);
-    setMobileServicesOpen(false);
-    setShowServices(false);
   }, [location.pathname]);
 
   // Lock body scroll on mobile menu open & handle Escape key
@@ -64,24 +60,7 @@ const Navbar: React.FC = () => {
     };
   }, [isOpen]);
 
-  // Service Links
-  const serviceLinks = [
-    { name: 'Photography', href: '/photography', icon: Camera, desc: 'Editorial & Event Captures' },
-    { name: 'Videography', href: '/videography', icon: Video, desc: 'Cinematic Films & BTS' },
-    { name: 'Audio Recording', href: '/audio-recording', icon: Mic2, desc: 'Studio Vocal Sessions' },
-    { name: 'Music Production', href: '/music-production', icon: Music, desc: 'Beats & Arrangement' },
-    { name: 'Live Streaming', href: '/live-streaming', icon: Radio, desc: 'Multi-cam Broadcast' },
-  ];
 
-  const mainLinks = [
-    { name: 'Work', href: '/portfolio' },
-    { name: 'Gallery', href: '/gallery' },
-    { name: 'Talent Hunt', href: '/talent-hunt' },
-    { name: 'AI Hub', href: '/ai-hub' },
-    { name: 'About', href: '/about' },
-  ];
-
-  const isServiceActive = serviceLinks.some((s) => s.href === location.pathname);
 
   // Do not render public Navbar on Admin pages (Admin has its own dedicated control bar)
   if (location.pathname.startsWith('/admin')) {
@@ -118,84 +97,11 @@ const Navbar: React.FC = () => {
               Home
             </Link>
 
-            {/* Services Dropdown */}
-            <div
-              className="relative"
-              onMouseEnter={() => setShowServices(true)}
-              onMouseLeave={() => setShowServices(false)}
-            >
-              <button
-                className={`nav-link flex items-center gap-1.5 ${isServiceActive ? 'text-white active' : ''}`}
-                aria-expanded={showServices}
-                aria-haspopup="true"
-              >
-                Services
-                <ChevronDown
-                  className={`w-3.5 h-3.5 transition-transform duration-300 ${
-                    showServices ? 'rotate-180 text-white' : 'text-white/60'
-                  }`}
-                />
-              </button>
-
-              <AnimatePresence>
-                {showServices && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute top-full left-1/2 -translate-x-1/2 pt-4 w-[420px]"
-                  >
-                    <div className="glass-strong rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.9)] border border-white/15">
-                      <div className="text-[9px] font-extrabold uppercase tracking-[0.3em] text-[#00E5FF] mb-3 px-3">
-                        Creative Services
-                      </div>
-                      <div className="grid grid-cols-1 gap-1">
-                        {serviceLinks.map((service) => {
-                          const Icon = service.icon;
-                          return (
-                            <Link
-                              key={service.name}
-                              to={service.href}
-                              className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/10 transition-all duration-300"
-                              onClick={() => setShowServices(false)}
-                            >
-                              <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-white/70 group-hover:bg-[#00E5FF] group-hover:text-black transition-all shrink-0">
-                                <Icon className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <p className="text-[11px] font-bold uppercase tracking-wider text-white group-hover:text-[#00E5FF] transition-colors">
-                                  {service.name}
-                                </p>
-                                <p className="text-[9px] text-white/50 font-medium">
-                                  {service.desc}
-                                </p>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {mainLinks.map((link) => (
-              <Link
-                key={link.name}
-                to={link.href}
-                className={`nav-link ${location.pathname === link.href ? 'text-white active' : ''}`}
-              >
-                {link.name}
-              </Link>
-            ))}
-
             <Link
-              to="/dashboard"
-              className={`nav-link ${location.pathname === '/dashboard' ? 'text-white active' : ''}`}
+              to="/about"
+              className={`nav-link ${location.pathname === '/about' ? 'text-white active' : ''}`}
             >
-              My Portal
+              About
             </Link>
 
             {/* Book Now Primary Button */}
@@ -265,61 +171,12 @@ const Navbar: React.FC = () => {
                     Home
                   </Link>
 
-                  {/* Accordion Services for Mobile */}
-                  <div className="py-1">
-                    <button
-                      onClick={() => setMobileServicesOpen(!mobileServicesOpen)}
-                      className="w-full flex justify-between items-center text-base font-bold uppercase tracking-[0.2em] text-white/90 hover:text-[#00E5FF] transition-colors py-1.5"
-                    >
-                      <span>Services</span>
-                      <ChevronDown
-                        className={`w-4 h-4 transition-transform duration-300 ${
-                          mobileServicesOpen ? 'rotate-180 text-[#00E5FF]' : 'text-white/40'
-                        }`}
-                      />
-                    </button>
-
-                    <AnimatePresence>
-                      {mobileServicesOpen && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.25 }}
-                          className="overflow-hidden pl-4 space-y-2.5 pt-2 border-l border-white/10 ml-2"
-                        >
-                          {serviceLinks.map((service) => (
-                            <Link
-                              key={service.name}
-                              to={service.href}
-                              className="block text-xs font-bold uppercase tracking-[0.2em] text-white/70 hover:text-white transition-colors py-1"
-                              onClick={() => setIsOpen(false)}
-                            >
-                              {service.name}
-                            </Link>
-                          ))}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {mainLinks.map((link) => (
-                    <Link
-                      key={link.name}
-                      to={link.href}
-                      className="block text-base font-bold uppercase tracking-[0.2em] text-white/90 hover:text-[#00E5FF] transition-colors py-1.5"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      {link.name}
-                    </Link>
-                  ))}
-
                   <Link
-                    to="/dashboard"
+                    to="/about"
                     className="block text-base font-bold uppercase tracking-[0.2em] text-white/90 hover:text-[#00E5FF] transition-colors py-1.5"
                     onClick={() => setIsOpen(false)}
                   >
-                    My Portal
+                    About
                   </Link>
                 </div>
               </div>
