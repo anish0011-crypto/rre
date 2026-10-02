@@ -17,31 +17,17 @@ import {
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config/api';
 
-const CORE_VALUES = [
-  {
-    title: 'Excellence',
-    desc: "We don't settle for 'good enough'. Every frame, mix, and capture is refined to perfection.",
-    icon: Award
-  },
-  {
-    title: 'Integrity',
-    desc: 'Transparent workflows, dependable timelines, and unwavering commitment to client trust.',
-    icon: ShieldCheck
-  },
-  {
-    title: 'Innovation',
-    desc: 'Constantly advancing our production pipeline with state-of-the-art cinematic tools and AI indexing.',
-    icon: Zap
-  }
-];
-
 const About = () => {
   const [team, setTeam] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [c, setC] = useState<any>({});
 
-  // ── PRESERVED: Team API fetch from /api/team ──
   useEffect(() => {
     fetchTeam();
+    fetch(`${API_URL}/api/about-content`)
+      .then(r => r.ok ? r.json() : {})
+      .then(data => setC(data))
+      .catch(() => {});
   }, []);
 
   const fetchTeam = async () => {
@@ -55,6 +41,12 @@ const About = () => {
     }
   };
 
+  const CORE_VALUES = [
+    { title: c.value1Title || 'Excellence', desc: c.value1Desc || "We don't settle for 'good enough'. Every frame, mix, and capture is refined to perfection.", icon: Award },
+    { title: c.value2Title || 'Integrity', desc: c.value2Desc || 'Transparent workflows, dependable timelines, and unwavering commitment to client trust.', icon: ShieldCheck },
+    { title: c.value3Title || 'Innovation', desc: c.value3Desc || 'Constantly advancing our production pipeline with state-of-the-art cinematic tools and AI indexing.', icon: Zap }
+  ];
+
   return (
     <div className="bg-[#000000] text-white min-h-screen">
 
@@ -62,7 +54,7 @@ const About = () => {
       <section className="relative min-h-[75vh] flex flex-col justify-end overflow-hidden pb-16 md:pb-24 pt-32">
         <div className="absolute inset-0 z-0 pointer-events-none select-none">
           <img
-            src="https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=1920&q=85"
+            src={c.heroBgImage || "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=1920&q=85"}
             alt="About RRE"
             className="w-full h-full object-cover opacity-25 animate-slow-zoom"
           />
@@ -78,15 +70,15 @@ const About = () => {
             className="max-w-3xl space-y-6"
           >
             <span className="inline-block text-[10px] font-bold uppercase tracking-[0.4em] text-white/40">
-              Our Story & Philosophy
+              {c.heroOverline || 'Our Story & Philosophy'}
             </span>
             <h1 className="display-hero text-white tracking-tighter leading-none">
-              WE CREATE <br />
-              <span className="italic font-normal text-white/75">STORIES THAT</span><br />
-              STAY.
+              {c.heroHeading1 || 'WE CREATE'} <br />
+              <span className="italic font-normal text-white/75">{c.heroHeading2 || 'STORIES THAT'}</span><br />
+              {c.heroHeading3 || 'STAY.'}
             </h1>
             <p className="editorial-subhead text-base sm:text-lg text-white/60 max-w-xl font-normal leading-relaxed">
-              Rajat Raj Entertainment is a creative house dedicated to cinematic excellence across photography, film, sound, and live media production.
+              {c.heroSubheading || 'Rajat Raj Entertainment is a creative house dedicated to cinematic excellence across photography, film, sound, and live media production.'}
             </p>
           </motion.div>
         </div>
@@ -107,7 +99,7 @@ const About = () => {
             >
               <div className="aspect-[4/5] rounded-3xl overflow-hidden border border-white/10 shadow-2xl relative group">
                 <img 
-                  src="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1000&q=80" 
+                  src={c.philosophyImage || "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1000&q=80"} 
                   alt="Our Vision" 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-85"
                 />
@@ -118,15 +110,15 @@ const About = () => {
             {/* Philosophy text */}
             <div className="space-y-8">
               <div className="space-y-3">
-                <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/35 block">The Studio</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/35 block">{c.philosophyOverline || 'The Studio'}</span>
                 <h2 className="display-title text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight">
-                  DRIVEN BY <br />
-                  <span className="italic font-normal text-white/70">HUMAN EMOTION.</span>
+                  {c.philosophyHeading1 || 'DRIVEN BY'} <br />
+                  <span className="italic font-normal text-white/70">{c.philosophyHeading2 || 'HUMAN EMOTION.'}</span>
                 </h2>
               </div>
               
               <p className="editorial-subhead text-base text-white/55 leading-relaxed">
-                Founded with a conviction that artistry and innovation must work as one, RRE unites world-class creative talent with modern production tools. We solve technical barriers so that artists and clients can focus entirely on genuine expression.
+                {c.philosophyBody || 'Founded with a conviction that artistry and innovation must work as one, RRE unites world-class creative talent with modern production tools.'}
               </p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
@@ -134,9 +126,9 @@ const About = () => {
                   <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/15 flex items-center justify-center text-white/60">
                     <Target className="w-5 h-5" />
                   </div>
-                  <h4 className="text-sm font-black uppercase tracking-wider text-white">Our Mission</h4>
+                  <h4 className="text-sm font-black uppercase tracking-wider text-white">{c.missionTitle || 'Our Mission'}</h4>
                   <p className="text-xs text-white/45 leading-relaxed">
-                    To empower every client and creator with uncompromising production quality and storytelling.
+                    {c.missionDesc || 'To empower every client and creator with uncompromising production quality and storytelling.'}
                   </p>
                 </div>
 
@@ -144,9 +136,9 @@ const About = () => {
                   <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/15 flex items-center justify-center text-white/60">
                     <Globe className="w-5 h-5" />
                   </div>
-                  <h4 className="text-sm font-black uppercase tracking-wider text-white">Our Vision</h4>
+                  <h4 className="text-sm font-black uppercase tracking-wider text-white">{c.visionTitle || 'Our Vision'}</h4>
                   <p className="text-xs text-white/45 leading-relaxed">
-                    To set the benchmark for AI-integrated creative media across photography, cinema, and audio.
+                    {c.visionDesc || 'To set the benchmark for AI-integrated creative media across photography, cinema, and audio.'}
                   </p>
                 </div>
               </div>
@@ -274,33 +266,33 @@ const About = () => {
         <div className="satyam-container">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             
-            <a href="tel:+918898134049" className="flex items-center gap-4 p-5 glass-subtle border border-white/10 rounded-2xl hover:border-white/25 transition-all group">
+            <a href={`tel:${(c.phone || '+91 88981 34049').replace(/\s/g, '')}`} className="flex items-center gap-4 p-5 glass-subtle border border-white/10 rounded-2xl hover:border-white/25 transition-all group">
               <div className="w-11 h-11 rounded-xl bg-white/5 border border-white/15 flex items-center justify-center text-white/50 group-hover:text-white transition-all shrink-0">
                 <Phone className="w-4 h-4" />
               </div>
               <div className="overflow-hidden">
                 <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-0.5">Call Direct</p>
-                <p className="text-xs font-bold text-white truncate">+91 88981 34049</p>
+                <p className="text-xs font-bold text-white truncate">{c.phone || '+91 88981 34049'}</p>
               </div>
             </a>
 
-            <a href="mailto:rajatrajentertainment@gmail.com" className="flex items-center gap-4 p-5 glass-subtle border border-white/10 rounded-2xl hover:border-white/25 transition-all group">
+            <a href={`mailto:${c.email || 'rajatrajentertainment@gmail.com'}`} className="flex items-center gap-4 p-5 glass-subtle border border-white/10 rounded-2xl hover:border-white/25 transition-all group">
               <div className="w-11 h-11 rounded-xl bg-white/5 border border-white/15 flex items-center justify-center text-white/50 group-hover:text-white transition-all shrink-0">
                 <Mail className="w-4 h-4" />
               </div>
               <div className="overflow-hidden">
                 <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-0.5">Email Studio</p>
-                <p className="text-xs font-bold text-white truncate">rajatrajentertainment@gmail.com</p>
+                <p className="text-xs font-bold text-white truncate">{c.email || 'rajatrajentertainment@gmail.com'}</p>
               </div>
             </a>
 
-            <a href="https://www.instagram.com/kundan_rajat_raj?utm_source=qr&igsh=MXYzamZ0NXpsdDZqYQ==" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-5 glass-subtle border border-white/10 rounded-2xl hover:border-white/25 transition-all group">
+            <a href={c.instagramUrl || 'https://www.instagram.com/kundan_rajat_raj'} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-5 glass-subtle border border-white/10 rounded-2xl hover:border-white/25 transition-all group">
               <div className="w-11 h-11 rounded-xl bg-white/5 border border-white/15 flex items-center justify-center text-white/50 group-hover:text-white transition-all shrink-0">
                 <Instagram className="w-4 h-4" />
               </div>
               <div className="overflow-hidden">
                 <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-0.5">Instagram</p>
-                <p className="text-xs font-bold text-white truncate">@kundan_rajat_raj</p>
+                <p className="text-xs font-bold text-white truncate">{c.instagram || '@kundan_rajat_raj'}</p>
               </div>
             </a>
 
@@ -310,7 +302,7 @@ const About = () => {
               </div>
               <div className="overflow-hidden">
                 <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-0.5">Studio Location</p>
-                <p className="text-xs font-bold text-white/80 leading-snug truncate">Dildarnagar — 232326</p>
+                <p className="text-xs font-bold text-white/80 leading-snug truncate">{c.location || 'Dildarnagar — 232326'}</p>
               </div>
             </div>
 
@@ -323,24 +315,24 @@ const About = () => {
         <div className="satyam-container text-center">
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="display-title text-4xl sm:text-6xl font-bold text-white tracking-tight leading-tight">
-              JOIN THE <br />
-              <span className="italic font-normal text-white/70">RRE EXPERIENCE.</span>
+              {c.ctaHeading1 || 'JOIN THE'} <br />
+              <span className="italic font-normal text-white/70">{c.ctaHeading2 || 'RRE EXPERIENCE.'}</span>
             </h2>
             <p className="editorial-subhead text-base text-white/50 max-w-lg mx-auto leading-relaxed">
-              Whether you are planning a landmark event or an artist ready to showcase your talent, we bring your vision to life.
+              {c.ctaSubheading || 'Whether you are planning a landmark event or an artist ready to showcase your talent, we bring your vision to life.'}
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
               <Link 
                 to="/booking" 
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-black text-[11px] font-bold uppercase tracking-widest rounded-full hover:bg-white/90 transition-colors"
               >
-                Start a Project <ArrowRight className="w-4 h-4" />
+                {c.ctaBtn1Text || 'Start a Project'} <ArrowRight className="w-4 h-4" />
               </Link>
               <Link 
                 to="/talent-hunt" 
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 glass-subtle border border-white/20 rounded-full text-[11px] font-bold uppercase tracking-widest text-white/70 hover:text-white hover:border-white/40 transition-all"
               >
-                Join Talent Hunt
+                {c.ctaBtn2Text || 'Join Talent Hunt'}
               </Link>
             </div>
           </div>

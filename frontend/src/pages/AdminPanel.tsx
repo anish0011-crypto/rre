@@ -63,6 +63,7 @@ const MAIN_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'hero', label: 'Hero Carousel', icon: Monitor },
   { id: 'home', label: 'Home Page', icon: LayoutTemplate },
+  { id: 'about', label: 'About Page', icon: FileText },
   { id: 'galleries', label: 'Galleries', icon: FolderOpen },
   { id: 'uploads', label: 'Photo Upload', icon: ImagePlus },
   { id: 'clients', label: 'Clients', icon: Users2 },
@@ -144,6 +145,9 @@ const AdminPanel = () => {
   // ── HOME CONTENT STATE ──
   const [homeContent, setHomeContent] = useState<any>(null);
 
+  // ── ABOUT CONTENT STATE ──
+  const [aboutContent, setAboutContent] = useState<any>(null);
+
   // ── HERO CAROUSEL STATE ──
   const [heroSlides, setHeroSlides] = useState<any[]>([]);
   const [heroSlideLoading, setHeroSlideLoading] = useState(false);
@@ -214,6 +218,9 @@ const AdminPanel = () => {
 
       const homeRes = await fetch(`${API_URL}/api/home-content`);
       if (homeRes.ok) setHomeContent(await homeRes.json());
+
+      const aboutRes = await fetch(`${API_URL}/api/about-content`);
+      if (aboutRes.ok) setAboutContent(await aboutRes.json());
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -713,6 +720,22 @@ const AdminPanel = () => {
     }
   };
 
+  const handleUpdateAboutContent = async (field: string, value: string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/about-content`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value })
+      });
+      if (res.ok) {
+        setAboutContent(await res.json());
+        toast.success('Updated!');
+      }
+    } catch {
+      toast.error('Failed to update');
+    }
+  };
+
   const handleUpdateSlideTitle = async (slide: any, newTitle: string) => {
     try {
       await fetch(`${API_URL}/api/hero-slides/${slide._id}`, {
@@ -1131,79 +1154,213 @@ const AdminPanel = () => {
               >
                 <div>
                   <h2 className="text-2xl font-black text-white tracking-tight">Home Page Content</h2>
-                  <p className="text-sm text-white/40 mt-1">Manage the text and photo in the "Boutique Media & AI Production" section.</p>
+                  <p className="text-sm text-white/40 mt-1">Full control over every section on the Home page</p>
                 </div>
 
-                {homeContent && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Text Fields */}
-                    <div className="space-y-4 bg-[#0c1015] p-6 rounded-2xl border border-white/10">
-                      <h3 className="text-sm font-bold text-[#00E5FF] mb-4">Text Content</h3>
-                      {[
-                        { key: 'badgeText', label: 'Badge Text' },
-                        { key: 'heading1', label: 'Heading Line 1' },
-                        { key: 'heading2', label: 'Heading Line 2' },
-                        { key: 'subheading', label: 'Subheading (Memories text)' },
-                        { key: 'stat1Number', label: 'Stat 1 Number' },
-                        { key: 'stat1Label', label: 'Stat 1 Label' },
-                        { key: 'stat2Number', label: 'Stat 2 Number' },
-                        { key: 'stat2Label', label: 'Stat 2 Label' },
-                      ].map((field) => (
-                        <div key={field.key} className="space-y-1">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">{field.label}</label>
-                          <input
-                            type="text"
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/30 transition-all"
-                            value={homeContent[field.key] || ''}
-                            onChange={(e) => setHomeContent({ ...homeContent, [field.key]: e.target.value })}
-                            onBlur={(e) => handleUpdateHomeContent(field.key, e.target.value)}
-                          />
+                {homeContent && (() => {
+                  const fieldRow = (label: string, key: string, textarea = false) => (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block">{label}</label>
+                      {textarea ? (
+                        <textarea
+                          rows={2}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/30 transition-all resize-none"
+                          value={homeContent[key] || ''}
+                          onChange={(e) => setHomeContent({ ...homeContent, [key]: e.target.value })}
+                          onBlur={(e) => handleUpdateHomeContent(key, e.target.value)}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/30 transition-all"
+                          value={homeContent[key] || ''}
+                          onChange={(e) => setHomeContent({ ...homeContent, [key]: e.target.value })}
+                          onBlur={(e) => handleUpdateHomeContent(key, e.target.value)}
+                        />
+                      )}
+                    </div>
+                  );
+
+                  return (
+                    <div className="space-y-8">
+                      {/* Brand Intro Section */}
+                      <div className="p-6 rounded-2xl bg-[#0c1015] border border-white/10 space-y-4">
+                        <h3 className="text-sm font-bold text-[#00E5FF]">Brand Intro Section</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-4">
+                            {fieldRow('Badge Text', 'badgeText')}
+                            {fieldRow('Heading Line 1', 'heading1')}
+                            {fieldRow('Heading Line 2 (italic)', 'heading2')}
+                            {fieldRow('Subheading', 'subheading', true)}
+                            {fieldRow('Stat 1 Number', 'stat1Number')}
+                            {fieldRow('Stat 1 Label', 'stat1Label')}
+                            {fieldRow('Stat 2 Number', 'stat2Number')}
+                            {fieldRow('Stat 2 Label', 'stat2Label')}
+                          </div>
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2">Image Preview</p>
+                              <div className="aspect-[4/5] max-w-[180px] rounded-xl overflow-hidden border border-white/10">
+                                <img src={homeContent.image} alt="Preview" className="w-full h-full object-cover" />
+                              </div>
+                            </div>
+                            {fieldRow('Section Image URL', 'image')}
+                            {fieldRow('Image Badge', 'imageBadge')}
+                            {fieldRow('Image Location', 'imageLocation')}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-
-                    {/* Image Fields */}
-                    <div className="space-y-4 bg-[#0c1015] p-6 rounded-2xl border border-white/10">
-                      <h3 className="text-sm font-bold text-[#00E5FF] mb-4">Section Photo</h3>
-                      <div className="relative aspect-[4/5] max-w-[200px] rounded-xl overflow-hidden mb-4 border border-white/10">
-                        <img src={homeContent.image} alt="Preview" className="w-full h-full object-cover" />
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">Photo URL</label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/30 transition-all"
-                          value={homeContent.image || ''}
-                          onChange={(e) => setHomeContent({ ...homeContent, image: e.target.value })}
-                          onBlur={(e) => handleUpdateHomeContent('image', e.target.value)}
-                        />
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">Photo Badge</label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/30 transition-all"
-                          value={homeContent.imageBadge || ''}
-                          onChange={(e) => setHomeContent({ ...homeContent, imageBadge: e.target.value })}
-                          onBlur={(e) => handleUpdateHomeContent('imageBadge', e.target.value)}
-                        />
                       </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">Photo Location</label>
+                      {/* Talent Hunt Banner */}
+                      <div className="p-6 rounded-2xl bg-[#0c1015] border border-white/10 space-y-4">
+                        <h3 className="text-sm font-bold text-[#00E5FF]">Talent Hunt Banner</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {fieldRow('Badge Text', 'talentBadge')}
+                          {fieldRow('Heading', 'talentHeading')}
+                          {fieldRow('Heading Highlight (cyan)', 'talentHeadingHighlight')}
+                          {fieldRow('Subheading', 'talentSubheading', true)}
+                          {fieldRow('Button Text', 'talentButtonText')}
+                        </div>
+                      </div>
+
+                      {/* AI Features Section */}
+                      <div className="p-6 rounded-2xl bg-[#0c1015] border border-white/10 space-y-4">
+                        <h3 className="text-sm font-bold text-[#00E5FF]">AI Features Section</h3>
+                        {fieldRow('Category Label', 'aiSectionCategory')}
+                        {fieldRow('Section Title', 'aiSectionTitle')}
+                        {fieldRow('Section Description', 'aiSectionDesc', true)}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/8 space-y-3">
+                            <p className="text-[10px] font-bold text-white/50 uppercase">Feature 1</p>
+                            {fieldRow('Title', 'aiFeature1Title')}
+                            {fieldRow('Description', 'aiFeature1Desc', true)}
+                          </div>
+                          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/8 space-y-3">
+                            <p className="text-[10px] font-bold text-white/50 uppercase">Feature 2</p>
+                            {fieldRow('Title', 'aiFeature2Title')}
+                            {fieldRow('Description', 'aiFeature2Desc', true)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Final CTA Section */}
+                      <div className="p-6 rounded-2xl bg-[#0c1015] border border-white/10 space-y-4">
+                        <h3 className="text-sm font-bold text-[#00E5FF]">Final CTA Section</h3>
+                        {fieldRow('Badge Text', 'ctaBadge')}
+                        {fieldRow('Heading Line 1', 'ctaHeading')}
+                        {fieldRow('Heading Line 2 (italic)', 'ctaHeadingItalic')}
+                        {fieldRow('Subheading', 'ctaSubheading', true)}
+                        {fieldRow('Button Text', 'ctaButtonText')}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </motion.div>
+            )}
+
+            {/* ════ TAB: ABOUT PAGE CONTENT ════ */}
+            {activeTab === 'about' && (
+              <motion.div
+                key="about-view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35 }}
+                className="space-y-8"
+              >
+                <div>
+                  <h2 className="text-2xl font-black text-white tracking-tight">About Page Content</h2>
+                  <p className="text-sm text-white/40 mt-1">Manage all text, images and contact info on the About page</p>
+                </div>
+
+                {aboutContent && (() => {
+                  const fieldRow = (label: string, key: string, textarea = false) => (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block">{label}</label>
+                      {textarea ? (
+                        <textarea
+                          rows={3}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/30 transition-all resize-none"
+                          value={aboutContent[key] || ''}
+                          onChange={(e) => setAboutContent({ ...aboutContent, [key]: e.target.value })}
+                          onBlur={(e) => handleUpdateAboutContent(key, e.target.value)}
+                        />
+                      ) : (
                         <input
                           type="text"
                           className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-white/20 focus:outline-none focus:border-white/30 transition-all"
-                          value={homeContent.imageLocation || ''}
-                          onChange={(e) => setHomeContent({ ...homeContent, imageLocation: e.target.value })}
-                          onBlur={(e) => handleUpdateHomeContent('imageLocation', e.target.value)}
+                          value={aboutContent[key] || ''}
+                          onChange={(e) => setAboutContent({ ...aboutContent, [key]: e.target.value })}
+                          onBlur={(e) => handleUpdateAboutContent(key, e.target.value)}
                         />
+                      )}
+                    </div>
+                  );
+
+                  return (
+                    <div className="space-y-8">
+                      {/* Hero Section */}
+                      <div className="p-6 rounded-2xl bg-[#0c1015] border border-white/10 space-y-4">
+                        <h3 className="text-sm font-bold text-[#00E5FF]">Hero Section</h3>
+                        {fieldRow('Overline (small top text)', 'heroOverline')}
+                        {fieldRow('Heading Line 1', 'heroHeading1')}
+                        {fieldRow('Heading Line 2 (italic)', 'heroHeading2')}
+                        {fieldRow('Heading Line 3', 'heroHeading3')}
+                        {fieldRow('Subheading paragraph', 'heroSubheading', true)}
+                        {fieldRow('Hero Background Image URL', 'heroBgImage')}
+                      </div>
+
+                      {/* Philosophy Section */}
+                      <div className="p-6 rounded-2xl bg-[#0c1015] border border-white/10 space-y-4">
+                        <h3 className="text-sm font-bold text-[#00E5FF]">Philosophy Section</h3>
+                        {fieldRow('Overline', 'philosophyOverline')}
+                        {fieldRow('Heading 1', 'philosophyHeading1')}
+                        {fieldRow('Heading 2 (italic)', 'philosophyHeading2')}
+                        {fieldRow('Body paragraph', 'philosophyBody', true)}
+                        {fieldRow('Section Image URL', 'philosophyImage')}
+                        {fieldRow('Mission Title', 'missionTitle')}
+                        {fieldRow('Mission Description', 'missionDesc', true)}
+                        {fieldRow('Vision Title', 'visionTitle')}
+                        {fieldRow('Vision Description', 'visionDesc', true)}
+                      </div>
+
+                      {/* Core Values */}
+                      <div className="p-6 rounded-2xl bg-[#0c1015] border border-white/10 space-y-4">
+                        <h3 className="text-sm font-bold text-[#00E5FF]">Core Values</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {[1,2,3].map(n => (
+                            <div key={n} className="space-y-3 p-4 rounded-xl bg-white/[0.02] border border-white/8">
+                              <p className="text-[10px] font-bold text-white/50 uppercase">Value {n}</p>
+                              {fieldRow('Title', `value${n}Title`)}
+                              {fieldRow('Description', `value${n}Desc`, true)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Contact Info */}
+                      <div className="p-6 rounded-2xl bg-[#0c1015] border border-white/10 space-y-4">
+                        <h3 className="text-sm font-bold text-[#00E5FF]">Contact Info</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {fieldRow('Phone Number', 'phone')}
+                          {fieldRow('Email Address', 'email')}
+                          {fieldRow('Instagram Handle', 'instagram')}
+                          {fieldRow('Instagram URL', 'instagramUrl')}
+                          {fieldRow('Location', 'location')}
+                        </div>
+                      </div>
+
+                      {/* CTA Section */}
+                      <div className="p-6 rounded-2xl bg-[#0c1015] border border-white/10 space-y-4">
+                        <h3 className="text-sm font-bold text-[#00E5FF]">Call to Action Section</h3>
+                        {fieldRow('Heading Line 1', 'ctaHeading1')}
+                        {fieldRow('Heading Line 2 (italic)', 'ctaHeading2')}
+                        {fieldRow('Subheading', 'ctaSubheading', true)}
+                        {fieldRow('Button 1 Text', 'ctaBtn1Text')}
+                        {fieldRow('Button 2 Text', 'ctaBtn2Text')}
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </motion.div>
             )}
 
