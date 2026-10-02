@@ -50,7 +50,9 @@ import {
   Bookmark,
   Compass,
   ExternalLink,
-  Menu
+  Menu,
+  Monitor,
+  ImagePlus
 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import toast from 'react-hot-toast';
@@ -58,7 +60,9 @@ import toast from 'react-hot-toast';
 // ── NAVIGATION MODULES ──────────────────────────────────────────────────────
 const MAIN_MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'hero', label: 'Hero Carousel', icon: Monitor },
   { id: 'galleries', label: 'Galleries', icon: FolderOpen },
+  { id: 'uploads', label: 'Photo Upload', icon: ImagePlus },
   { id: 'clients', label: 'Clients', icon: Users2 },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
   { id: 'services', label: 'Services', icon: Settings },
@@ -135,6 +139,18 @@ const AdminPanel = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [editingGallery, setEditingGallery] = useState<any | null>(null);
 
+  // ── HERO CAROUSEL STATE ──
+  const [heroSlides, setHeroSlides] = useState<any[]>([]);
+  const [heroSlideLoading, setHeroSlideLoading] = useState(false);
+  const [newSlideTitle, setNewSlideTitle] = useState('');
+  const [newSlideImage, setNewSlideImage] = useState(''); // base64 or URL
+  const heroSlideInputRef = useRef<HTMLInputElement>(null);
+
+  // ── STANDALONE PHOTO UPLOAD STATE ──
+  const [uploadGallerySlug, setUploadGallerySlug] = useState('');
+  const [standaloneFiles, setStandaloneFiles] = useState<File[]>([]);
+  const [uploadingStandalone, setUploadingStandalone] = useState(false);
+
   // ── PRESERVED: Authentication verification & polling ──
   useEffect(() => {
     const auth = localStorage.getItem('isAdminAuthenticated');
@@ -187,6 +203,9 @@ const AdminPanel = () => {
 
       const payRes = await fetch(`${API_URL}/api/payments`);
       if (payRes.ok) setPayments(await payRes.json());
+
+      const heroRes = await fetch(`${API_URL}/api/hero-slides/all`);
+      if (heroRes.ok) setHeroSlides(await heroRes.json());
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -625,6 +644,91 @@ const AdminPanel = () => {
     }
   };
 
+  // ── HERO CAROUSEL HANDLERS ──
+  const handleHeroSlideImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setNewSlideImage(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleAddHeroSlide = async () => {
+    if (!newSlideImage) { toast.error('Please select an image first'); return; }
+    setHeroSlideLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/hero-slides`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: newSlideImage, title: newSlideTitle, isActive: true })
+      });
+      if (res.ok) {
+        toast.success('Slide added to carousel!');
+        setNewSlideImage('');
+        setNewSlideTitle('');
+        fetchData();
+      } else {
+        const err = await res.json();
+        toast.error(err.message || 'Failed to add slide');
+      }
+    } catch (err) {
+      toast.error('Connection error');
+    } finally {
+      setHeroSlideLoading(false);
+    }
+  };
+
+  const handleDeleteHeroSlide = async (id: string) => {
+    if (!confirm('Remove this slide from the carousel?')) return;
+    try {
+      const res = await fetch(`${API_URL}/api/hero-slides/${id}`, { method: 'DELETE' });
+      if (res.ok) { toast.success('Slide removed'); fetchData(); }
+      else toast.error('Failed to delete slide');
+    } catch { toast.error('Connection error'); }
+  };
+
+  const handleToggleHeroSlide = async (slide: any) => {
+    try {
+      const res = await fetch(`${API_URL}/api/hero-slides/${slide._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !slide.isActive })
+      });
+      if (res.ok) { toast.success(slide.isActive ? 'Slide hidden' : 'Slide shown'); fetchData(); }
+    } catch { toast.error('Connection error'); }
+  };
+
+  // ── STANDALONE GALLERY PHOTO UPLOAD HANDLER ──
+  const handleStandaloneUpload = async () => {
+    if (!uploadGallerySlug.trim()) { toast.error('Enter gallery slug/ID first'); return; }
+    if (standaloneFiles.length === 0) { toast.error('Select at least one photo'); return; }
+    setUploadingStandalone(true);
+    try {
+      let success = 0;
+      for (const file of standaloneFiles) {
+        const reader = new FileReader();
+        const base64: string = await new Promise(resolve => {
+          reader.onload = e => resolve(e.target?.result as string);
+          reader.readAsDataURL(file);
+        });
+        const res = await fetch(`${API_URL}/api/galleries/${uploadGallerySlug.trim()}/add-media`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ media: [{ type: 'image', url: base64, thumbnail: '' }] })
+        });
+        if (res.ok) success++;
+      }
+      toast.success(`${success}/${standaloneFiles.length} photos uploaded!`);
+      setStandaloneFiles([]);
+      setUploadGallerySlug('');
+      fetchData();
+    } catch {
+      toast.error('Upload failed. Check backend connection.');
+    } finally {
+      setUploadingStandalone(false);
+    }
+  };
+
   // ── UNIFIED PAYMENTS & REVENUE CALCULATION ──
   const allTransactions = [
     ...payments.map(p => ({
@@ -889,6 +993,240 @@ const AdminPanel = () => {
 
           {/* Central Workspace */}
           <div className="flex-1 p-6 md:p-8 space-y-8 min-w-0 overflow-y-auto">
+
+            {/* ════ TAB: HERO CAROUSEL MANAGEMENT ════ */}
+            {activeTab === 'hero' && (
+              <motion.div
+                key="hero-view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35 }}
+                className="space-y-8"
+              >
+                <div>
+                  <h2 className="text-2xl font-black text-white tracking-tight">Hero Carousel</h2>
+                  <p className="text-sm text-white/40 mt-1">Manage background images shown on the home page hero section</p>
+                </div>
+
+                {/* Add New Slide */}
+                <div className="p-6 rounded-2xl bg-[#0c1015] border border-white/10 space-y-5">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <ImagePlus className="w-4 h-4 text-[#00E5FF]" /> Add New Slide
+                  </h3>
+
+                  {/* Image Preview */}
+                  {newSlideImage ? (
+                    <div className="relative aspect-video w-full max-w-md rounded-xl overflow-hidden border border-white/20">
+                      <img src={newSlideImage} alt="Preview" className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setNewSlideImage('')}
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-white hover:bg-red-500/80 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => heroSlideInputRef.current?.click()}
+                      className="aspect-video w-full max-w-md rounded-xl border-2 border-dashed border-white/15 hover:border-[#00E5FF]/50 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all group"
+                    >
+                      <Upload className="w-8 h-8 text-white/30 group-hover:text-[#00E5FF] transition-colors" />
+                      <span className="text-xs text-white/40 group-hover:text-white/70 font-medium">Click to upload slide image</span>
+                      <span className="text-[10px] text-white/25">JPG, PNG, WEBP — max 5MB recommended</span>
+                    </div>
+                  )}
+
+                  <input
+                    ref={heroSlideInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleHeroSlideImageSelect}
+                  />
+
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      placeholder="Slide title / label (optional)"
+                      className="flex-1 px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-[#00E5FF]/50"
+                      value={newSlideTitle}
+                      onChange={e => setNewSlideTitle(e.target.value)}
+                    />
+                    <button
+                      onClick={handleAddHeroSlide}
+                      disabled={heroSlideLoading || !newSlideImage}
+                      className="px-5 py-2.5 bg-white text-black text-xs font-bold rounded-xl hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {heroSlideLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      Add Slide
+                    </button>
+                  </div>
+                </div>
+
+                {/* Existing Slides Grid */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-white/70">Current Slides ({heroSlides.length})</h3>
+                  {heroSlides.length === 0 ? (
+                    <div className="p-10 rounded-2xl border border-white/5 text-center text-white/30 text-sm">
+                      No slides yet. Add one above.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {heroSlides.map((slide: any, idx: number) => (
+                        <div key={slide._id} className={`rounded-2xl overflow-hidden border transition-all ${slide.isActive ? 'border-white/20' : 'border-white/5 opacity-50'}`}>
+                          <div className="relative aspect-video">
+                            <img
+                              src={slide.image}
+                              alt={slide.title || `Slide ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                            <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-white/80 truncate max-w-[70%]">
+                                {slide.title || `Slide ${idx + 1}`}
+                              </span>
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${slide.isActive ? 'bg-emerald-500/30 text-emerald-400' : 'bg-red-500/30 text-red-400'}`}>
+                                {slide.isActive ? 'Live' : 'Hidden'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="p-3 bg-[#0c1015] flex items-center justify-between gap-2">
+                            <span className="text-[10px] text-white/40 font-mono">#{idx + 1}</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleToggleHeroSlide(slide)}
+                                className={`text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-all ${
+                                  slide.isActive
+                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
+                                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                                }`}
+                              >
+                                {slide.isActive ? 'Hide' : 'Show'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteHeroSlide(slide._id)}
+                                className="p-1.5 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ════ TAB: STANDALONE PHOTO UPLOAD ════ */}
+            {activeTab === 'uploads' && (
+              <motion.div
+                key="uploads-view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35 }}
+                className="space-y-8"
+              >
+                <div>
+                  <h2 className="text-2xl font-black text-white tracking-tight">Photo Upload</h2>
+                  <p className="text-sm text-white/40 mt-1">Upload photos directly to any gallery</p>
+                </div>
+
+                <div className="p-6 rounded-2xl bg-[#0c1015] border border-white/10 space-y-5 max-w-xl">
+                  {/* Gallery Selector */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block">Target Gallery</label>
+                    <select
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#00E5FF]/50 [color-scheme:dark]"
+                      value={uploadGallerySlug}
+                      onChange={e => setUploadGallerySlug(e.target.value)}
+                    >
+                      <option value="">— Select a Gallery —</option>
+                      {galleries.map((g: any) => (
+                        <option key={g._id} value={g.slug}>{g.title} ({g.slug})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* File Drop Zone */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 block">Select Photos</label>
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full p-8 rounded-xl border-2 border-dashed border-white/15 hover:border-[#00E5FF]/50 flex flex-col items-center gap-3 cursor-pointer transition-all group"
+                    >
+                      <Upload className="w-8 h-8 text-white/30 group-hover:text-[#00E5FF] transition-colors" />
+                      <span className="text-sm text-white/50 group-hover:text-white font-medium">Click to select photos</span>
+                      <span className="text-xs text-white/25">JPG, PNG, WEBP, HEIC — multiple files supported</span>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={e => setStandaloneFiles(Array.from(e.target.files || []))}
+                    />
+                  </div>
+
+                  {/* Selected Files Preview */}
+                  {standaloneFiles.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white/60">{standaloneFiles.length} file(s) selected</span>
+                        <button onClick={() => setStandaloneFiles([])} className="text-xs text-white/30 hover:text-red-400">Clear all</button>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        {standaloneFiles.slice(0, 8).map((f, i) => (
+                          <div key={i} className="aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10 relative">
+                            <img src={URL.createObjectURL(f)} alt={f.name} className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                        {standaloneFiles.length > 8 && (
+                          <div className="aspect-square rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-xs text-white/50 font-bold">
+                            +{standaloneFiles.length - 8}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleStandaloneUpload}
+                    disabled={uploadingStandalone || !uploadGallerySlug || standaloneFiles.length === 0}
+                    className="w-full py-3 bg-white text-black font-bold text-sm rounded-xl hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {uploadingStandalone ? (
+                      <><RefreshCw className="w-4 h-4 animate-spin" /> Uploading...</>
+                    ) : (
+                      <><Upload className="w-4 h-4" /> Upload {standaloneFiles.length > 0 ? `${standaloneFiles.length} Photos` : 'Photos'}</>
+                    )}
+                  </button>
+                </div>
+
+                {/* Quick Gallery List */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-white/60">All Galleries ({galleries.length})</h3>
+                  <div className="space-y-2">
+                    {galleries.map((g: any) => (
+                      <div key={g._id} className="flex items-center justify-between p-4 rounded-xl bg-[#0c1015] border border-white/8 hover:border-white/15 transition-all">
+                        <div>
+                          <p className="text-sm font-bold text-white">{g.title}</p>
+                          <p className="text-xs text-white/40 font-mono">{g.slug} · {g.media?.length || 0} photos</p>
+                        </div>
+                        <button
+                          onClick={() => setUploadGallerySlug(g.slug)}
+                          className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white hover:border-[#00E5FF]/40 transition-all"
+                        >
+                          Select
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             {/* ════ TAB: DASHBOARD (REFERENCE COMPOSITION) ════ */}
             {activeTab === 'dashboard' && (

@@ -3,52 +3,73 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import Button from './ui/Button';
+import { API_URL } from '../config/api';
 
-// High-resolution cinematic background images for the carousel
-const backgroundSlides = [
+// Static fallback slides if API is unavailable
+const FALLBACK_SLIDES = [
   {
-    id: 1,
+    _id: '1',
     image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1920&q=85',
     title: 'Grand Wedding & Event Production',
   },
   {
-    id: 2,
+    _id: '2',
     image: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=1920&q=85',
     title: 'Cinematic Films & Visual Arts',
   },
   {
-    id: 3,
+    _id: '3',
     image: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1920&q=85',
-    title: 'Dolby Atmos Studio Recording & Music',
+    title: 'Studio Recording & Music',
   },
   {
-    id: 4,
+    _id: '4',
     image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1920&q=85',
-    title: 'Live Concert & Multi-cam Broadcast',
+    title: 'Live Concert & Broadcast',
   },
 ];
 
+interface Slide {
+  _id: string;
+  image: string;
+  title: string;
+}
+
 const Hero: React.FC = () => {
+  const [slides, setSlides] = useState<Slide[]>(FALLBACK_SLIDES);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const shouldReduceMotion = useReducedMotion();
 
-  const nextSlide = useCallback(() => {
-    setCurrentSlide((prev) => (prev + 1) % backgroundSlides.length);
+  // Fetch slides from backend
+  useEffect(() => {
+    fetch(`${API_URL}/api/hero-slides`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data && data.length > 0) setSlides(data); })
+      .catch(() => {}); // silently fall back to static slides
   }, []);
 
+  const nextSlide = useCallback(() => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+  }, [slides.length]);
+
   const prevSlide = useCallback(() => {
-    setCurrentSlide((prev) => (prev - 1 + backgroundSlides.length) % backgroundSlides.length);
-  }, []);
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  }, [slides.length]);
 
   // Background auto-slide every 5 seconds
   useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || slides.length <= 1) return;
     const interval = setInterval(() => {
       nextSlide();
     }, 5000);
     return () => clearInterval(interval);
-  }, [isPaused, nextSlide]);
+  }, [isPaused, nextSlide, slides.length]);
+
+  // Reset slide index when slides change
+  useEffect(() => {
+    setCurrentSlide(0);
+  }, [slides.length]);
 
   return (
     <section
@@ -60,7 +81,7 @@ const Hero: React.FC = () => {
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         <AnimatePresence initial={false}>
           <motion.div
-            key={backgroundSlides[currentSlide].id}
+            key={slides[currentSlide]?._id || currentSlide}
             initial={{ opacity: 0, scale: 1.06 }}
             animate={{ opacity: 0.55, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
@@ -71,8 +92,8 @@ const Hero: React.FC = () => {
             className="absolute inset-0 w-full h-full"
           >
             <img
-              src={backgroundSlides[currentSlide].image}
-              alt={backgroundSlides[currentSlide].title}
+              src={slides[currentSlide]?.image}
+              alt={slides[currentSlide]?.title || 'RRE Studio'}
               className="w-full h-full object-cover"
             />
           </motion.div>
@@ -154,7 +175,7 @@ const Hero: React.FC = () => {
               <span className="text-[11px] font-mono font-bold tracking-widest text-white/80">
                 <span className="text-white">0{currentSlide + 1}</span>
                 <span className="text-white/30 mx-1">/</span>
-                <span className="text-white/40">0{backgroundSlides.length}</span>
+                <span className="text-white/40">0{slides.length}</span>
               </span>
 
               <button
@@ -168,7 +189,7 @@ const Hero: React.FC = () => {
 
             {/* Slide Indicators / Pill Dots */}
             <div className="hidden sm:flex items-center gap-1.5">
-              {backgroundSlides.map((_, idx) => (
+              {slides.map((_, idx) => (
                 <button
                   key={idx}
                   onClick={() => setCurrentSlide(idx)}
